@@ -21,6 +21,20 @@ def generate_reports(records: List[FinalReportRecord], base_filename: str = "aud
     data = [r.model_dump() for r in records]
     df = pd.DataFrame(data)
 
+    # Filter and rename columns to exactly match user's requested layout
+    display_columns = {
+        'row_number': 'S.No',
+        'institute_name': 'Institute Name',
+        'course_name': 'Course Name',
+        'verification_status': 'Match Status',
+        'ai_summary': 'AI Summary',
+        'course_link': 'Course Link'
+    }
+    
+    # Ensure all required columns exist before filtering to avoid KeyError
+    available_cols = [col for col in display_columns.keys() if col in df.columns]
+    df_display = df[available_cols].rename(columns=display_columns)
+
     # File paths
     csv_path = REPORTS_DIR / f"{prefix}.csv"
     excel_path = REPORTS_DIR / f"{prefix}.xlsx"
@@ -30,13 +44,12 @@ def generate_reports(records: List[FinalReportRecord], base_filename: str = "aud
 
     try:
         # Save CSV
-        df.to_csv(csv_path, index=False)
+        df_display.to_csv(csv_path, index=False)
         logger.info(f"Saved CSV report: {csv_path}")
 
         # Save Excel with column width auto-adjustment
-        # openpyxl must be installed
         with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Audit_Report')
+            df_display.to_excel(writer, index=False, sheet_name='Audit_Report')
             worksheet = writer.sheets['Audit_Report']
             from openpyxl.utils import get_column_letter
             from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -57,14 +70,16 @@ def generate_reports(records: List[FinalReportRecord], base_filename: str = "aud
             worksheet.freeze_panes = "A2"
             
             # Format Columns & Rows
-            for idx, col in enumerate(df.columns):
+            for idx, col in enumerate(df_display.columns):
                 col_letter = get_column_letter(idx + 1)
                 
                 # Set Breathable Column Widths
-                if col in ['description', 'course_name', 'ai_summary', 'institute_name']:
-                    worksheet.column_dimensions[col_letter].width = 50
-                elif col == 'link':
-                    worksheet.column_dimensions[col_letter].width = 40
+                if col == 'AI Summary':
+                    worksheet.column_dimensions[col_letter].width = 60
+                elif col in ['Course Name', 'Institute Name', 'Course Link']:
+                    worksheet.column_dimensions[col_letter].width = 45
+                elif col == 'S.No':
+                    worksheet.column_dimensions[col_letter].width = 10
                 else:
                     worksheet.column_dimensions[col_letter].width = 20
                 

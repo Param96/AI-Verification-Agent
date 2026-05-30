@@ -51,9 +51,12 @@ def parse_pdf_vision(file_path: Path) -> List[CourseRecord]:
             
             # Quadrant data buckets
             quadrants = {1: {}, 2: {}, 3: {}, 4: {}}
+            page_domain = "Unknown"
+            
             for i in range(1, 5):
                 quadrants[i] = {
                     "text": "",
+                    "spans": [],
                     "link": None,
                     "qs_ranked": False,
                     "nirf_ranked": False,
@@ -80,7 +83,20 @@ def parse_pdf_vision(file_path: Path) -> List[CourseRecord]:
                             text = span["text"]
                             if "%" in text or "\\" in text or "]" in text: 
                                 text = unscramble_text(text)
-                            quadrants[q]["text"] += text + " "
+                            
+                            y, x = span["bbox"][1], span["bbox"][0]
+                            if y < 40:
+                                if "FREE" not in text.upper() and len(text.strip()) > 3:
+                                    page_domain = text.strip()
+                                elif "FREE COURSE" in text.upper():
+                                    page_domain = "Free Courses"
+                                continue # Skip adding header text to the course block
+                                    
+                            quadrants[q]["spans"].append({
+                                "text": text,
+                                "y": y,
+                                "x": x
+                            })
 
             # 3. Detect Logos (Vision/Image Bounding Boxes)
             # In a full production CV pipeline, we would render the page to an image
@@ -110,11 +126,14 @@ def parse_pdf_vision(file_path: Path) -> List[CourseRecord]:
 
             # 4. Compile Records
             for q_id, data in quadrants.items():
-                if not data["text"].strip():
+                if not data["spans"]:
                     continue # Empty quadrant
                     
                 # 5. Regex Feature Extraction
-                full_text = data["text"].strip()
+                # Sort spans visually: top-to-bottom, left-to-right
+                data["spans"].sort(key=lambda s: (round(s["y"] / 8), s["x"]))
+                full_text = " ".join([s["text"].strip() for s in data["spans"] if s["text"].strip()])
+                
                 import re
                 
                 cost_match = re.search(r'Cost:\s*(\S+)', full_text, re.IGNORECASE)
@@ -123,18 +142,31 @@ def parse_pdf_vision(file_path: Path) -> List[CourseRecord]:
                 duration_match = re.search(r'Duration:\s*(\S+)', full_text, re.IGNORECASE)
                 language_match = re.search(r'Language:\s*(\S+)', full_text, re.IGNORECASE)
                 skills_match = re.search(r'Skills:\s*(.*?)(?:Link to course|$)', full_text, re.IGNORECASE)
+                domain_match = re.search(r'Domain:\s*(.*?)(?:Cost:|Mode:|Country:|Duration:|Language:|Skills:|$)', full_text, re.IGNORECASE)
                 
                 header_text = full_text.split("Cost:")[0].strip() if "Cost:" in full_text else full_text[:100]
                 
+                extracted_domain = page_domain
+                if domain_match:
+                    extracted_domain = domain_match.group(1).strip()
+                elif "FREE COURSE" in full_text.upper() or extracted_domain == "Unknown":
+                    extracted_domain = page_domain if page_domain != "Unknown" else "General"
+                
+                # Filter out legend/footer boxes that are not actual courses
+                if "NIRF Ranked Institute" in header_text or "Free To Audit Course" in header_text:
+                    continue
+                if not (cost_match or mode_match or duration_match or country_match) and not data["link"]:
+                    continue
+                
                 record = CourseRecord(
                     row_number=row_id,
-                    institute_name="Extracted from Header",
-                    course_name=header_text,  # Contains Course + Institute for maximum similarity matching
+                    institute_name="See Course Name", # Combined in header
+                    course_name=header_text,  # Cleanly contains Course + Institute 
                     mode=mode_match.group(1) if mode_match else "Online",
                     duration=duration_match.group(1) if duration_match else "Unknown",
                     fees=cost_match.group(1) if cost_match else "Unknown",
                     course_type="Free Audit" if data["free_audit"] else "Standard",
-                    field_domain="General",
+                    field_domain=extracted_domain,
                     certificate="Unknown",
                     link=data["link"],
                     qs_world_rank="Ranked" if data["qs_ranked"] else None,

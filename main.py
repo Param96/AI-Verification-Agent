@@ -41,6 +41,7 @@ async def process_record(
                 row_number=record.row_number,
                 institute_name=record.institute_name,
                 course_name=record.course_name,
+                course_link=record.link or "N/A",
                 link_status=link_status_msg,
                 verification_status="BROKEN_LINK",
                 confidence_score=1.0,
@@ -64,7 +65,32 @@ async def process_record(
         # 3. Integrity Verification (ML + Rules)
         verification_result = checker.check_integrity(record, crawl_result)
 
-        # 4. Compile Final Record
+        # 4. Fallback to LLM for maximum accuracy if ML Classifier is uncertain or fails
+        if verification_result['status'] != "VALID" or verification_result['confidence'] < 0.8:
+            from ai_engine.comparator import verify_course_data
+            logger.info(f"Row {record.row_number}: ML status {verification_result['status']} ({verification_result['confidence']:.2f}). Falling back to Gemma 4...")
+            llm_result = await verify_course_data(record, crawl_result)
+            
+            # Map LLM statuses to system statuses
+            status_map = {
+                "MATCH": "VALID",
+                "PARTIAL": "PARTIAL_MATCH",
+                "MISMATCH": "INVALID"
+            }
+            llm_stat = llm_result.status.upper()
+            verification_result['status'] = status_map.get(llm_stat, llm_stat)
+            verification_result['confidence'] = llm_result.confidence
+            
+            # Format differences into AI summary
+            if not verification_result.get('suggested_correction'):
+                verification_result['suggested_correction'] = {}
+                
+            if llm_result.differences:
+                verification_result['suggested_correction']['reason'] = "• " + "\n• ".join(llm_result.differences)
+            else:
+                verification_result['suggested_correction']['reason'] = "LLM Verification: Perfect match."
+
+        # 5. Compile Final Record
         features = verification_result.get('features') or {}
         tax_suggestion = verification_result.get('suggested_correction') or {}
         
@@ -75,6 +101,7 @@ async def process_record(
             row_number=record.row_number,
             institute_name=record.institute_name,
             course_name=record.course_name,
+            course_link=record.link or "N/A",
             link_status=f"HTTP {crawl_result.status_code}",
             verification_status=verification_result['status'],
             confidence_score=verification_result['confidence'],

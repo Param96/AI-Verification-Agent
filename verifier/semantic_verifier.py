@@ -7,8 +7,8 @@ from taxonomy.mapper import TaxonomyMapper
 
 class SemanticVerifier:
     def __init__(self):
-        self.feature_engineer = FeatureEngineer()
         self.classifier = VerificationClassifier()
+        self.feature_engineer = FeatureEngineer()
         self.taxonomy = TaxonomyMapper()
 
     def verify(self, dataset: CourseRecord, web_data: CrawlResult) -> Dict[str, Any]:

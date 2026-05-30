@@ -37,6 +37,7 @@ class FinalReportRecord(BaseModel):
     row_number: int
     institute_name: str
     course_name: str
+    course_link: str
     link_status: str
     verification_status: str
     confidence_score: float
@@ -52,3 +53,10 @@ class FinalReportRecord(BaseModel):
     broken_link_status: bool
     ai_summary: str
     timestamp: str
+
+class AIVerificationResult(BaseModel):
+    """Schema for the LLM output verification result."""
+    status: str
+    confidence: float
+    verified_fields: Dict[str, bool]
+    differences: List[str]

@@ -6,19 +6,20 @@ from config import OPENAI_API_KEY, DEFAULT_LLM_MODEL
 from utils.logger import logger
 from utils.schema import CourseRecord, CrawlResult, AIVerificationResult
 
-# Initialize the AsyncOpenAI client
-# Using a timeout and max retries for resilience
-client = AsyncOpenAI(
-    api_key=OPENAI_API_KEY,
-    timeout=60.0,
-    max_retries=3
-)
+# We instantiate the client lazily inside the function to avoid event loop conflicts.
 
 async def verify_course_data(course: CourseRecord, web_data: CrawlResult) -> AIVerificationResult:
     """
     Uses OpenAI to compare the dataset course record against the extracted text from the official link.
     Returns structured JSON according to AIVerificationResult schema.
     """
+    client = AsyncOpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=OPENAI_API_KEY,
+        timeout=60.0,
+        max_retries=3
+    )
+
     if not web_data.extracted_text or len(web_data.extracted_text.strip()) < 50:
         logger.warning(f"Row {course.row_number}: Not enough text extracted to perform AI verification.")
         return AIVerificationResult(
@@ -40,7 +41,15 @@ async def verify_course_data(course: CourseRecord, web_data: CrawlResult) -> AIV
         "You are an expert auditor for educational courses. Your job is to compare a structured dataset "
         "record with the raw text extracted from the course's official webpage. "
         "Detect exact matches, semantic matches, missing values, outdated info, and incorrect values. "
-        "Strictly adhere to the output JSON schema requested."
+        "Pay SPECIAL ATTENTION to the 'field_domain' or 'category'. The main domain might be explicitly mentioned in the original PDF record, and you must verify if the webpage content actually belongs to this domain or if the webpage mentions a different domain/category entirely. "
+        "Strictly adhere to the following JSON schema for your output:\n"
+        "{\n"
+        '  "status": "match | partial | mismatch",\n'
+        '  "confidence": 0.0 to 1.0,\n'
+        '  "verified_fields": {"field_name": true/false},\n'
+        '  "differences": ["list of strings detailing discrepancies"]\n'
+        "}\n"
+        "Do NOT use objects in the differences list. Provide a simple string describing each difference. Format your differences like this: 'Field Domain: The course does not belong to the domain XYZ' or 'Duration: The duration is 6 weeks instead of 4 weeks'."
     )
 
     user_prompt = f"""
@@ -54,20 +63,31 @@ Analyze the above information. Compare the dataset fields against what is mentio
 For 'verified_fields', provide a boolean mapping for each field present in the Dataset Record. True if the webpage confirms it (or strongly implies it semantically), False if it contradicts or is completely missing.
 Provide a list of 'differences' if any field contradicts. If everything matches, the list should be empty.
 Set 'status' to 'match' (all fields match), 'partial' (some match, some are missing/different), or 'mismatch' (major contradictions).
+Make sure you LOOK CAREFULLY at the course name and institute name. Also, carefully verify if the course domain matches the original domain provided in the Dataset Record.
 """
 
     try:
-        completion = await client.beta.chat.completions.parse(
+        completion = await client.chat.completions.create(
             model=DEFAULT_LLM_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            response_format=AIVerificationResult,
+            response_format={"type": "json_object"},
             temperature=0.1
         )
 
-        result = completion.choices[0].message.parsed
+        import json
+        raw_content = completion.choices[0].message.content.strip()
+        if raw_content.startswith("```json"):
+            raw_content = raw_content[7:]
+        if raw_content.startswith("```"):
+            raw_content = raw_content[3:]
+        if raw_content.endswith("```"):
+            raw_content = raw_content[:-3]
+        
+        result_dict = json.loads(raw_content.strip())
+        result = AIVerificationResult(**result_dict)
         return result
 
     except ValidationError as e:
