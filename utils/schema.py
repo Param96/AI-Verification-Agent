@@ -20,6 +20,7 @@ class CourseRecord(BaseModel):
     language: Optional[str] = None
     scholarship: Optional[str] = None
     country: Optional[str] = None
+    has_uni_logo: Optional[bool] = None
 
 class CrawlResult(BaseModel):
     """Schema for the result of the web crawler."""

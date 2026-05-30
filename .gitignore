@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*$py.class
+
+# Environments
+.env
+.venv
+venv/
+ENV/
+env/
+
+# OS-specific
+.DS_Store
+**/.DS_Store
+
+# Local database / caches / logs / reports
+*.sqlite
+logs/
+reports/
+snapshots/
+models/

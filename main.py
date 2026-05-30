@@ -11,7 +11,7 @@ from utils.logger import logger
 from utils.schema import CourseRecord, FinalReportRecord
 from utils.checkpoint import CheckpointManager
 from parser.dataset_parser import parse_spreadsheet
-from parser.pdf_parser import parse_pdf
+from parser.vision_pdf_parser import parse_pdf_vision
 from crawler.link_validator import validate_link
 from crawler.web_scraper import scrape_url
 from verifier.integrity_checker import IntegrityChecker
@@ -65,10 +65,10 @@ async def process_record(
         verification_result = checker.check_integrity(record, crawl_result)
 
         # 4. Compile Final Record
-        features = verification_result.get('features', {})
-        tax_suggestion = verification_result.get('suggested_correction', {})
+        features = verification_result.get('features') or {}
+        tax_suggestion = verification_result.get('suggested_correction') or {}
         
-        predicted_domain = tax_suggestion.get('suggestion', "Unknown") if tax_suggestion else "Unknown"
+        predicted_domain = tax_suggestion.get('suggestion', "Unknown")
         domain_match = "Match" if features.get('domain_match') == 1 else "Mismatch"
 
         final_record = FinalReportRecord(
@@ -104,7 +104,7 @@ async def main(file_path: Path):
 
     # Parse data
     if file_path.suffix.lower() == '.pdf':
-        records = parse_pdf(file_path)
+        records = parse_pdf_vision(file_path)
     else:
         records = parse_spreadsheet(file_path)
 
