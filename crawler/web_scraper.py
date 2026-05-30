@@ -4,6 +4,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright, Page, BrowserContext
 from utils.logger import logger
 from utils.schema import CrawlResult
+import time
 from config import PLAYWRIGHT_TIMEOUT, SNAPSHOTS_DIR, RETRIES
 
 async def extract_page_content(page: Page) -> str:
@@ -17,6 +18,7 @@ async def extract_page_content(page: Page) -> str:
                 '[id*="gdpr"]', '[class*="gdpr"]',
                 '[id*="consent"]', '[class*="consent"]',
                 '[id*="banner"]', '[class*="banner"]',
+                '[id*="popup"]', '[class*="popup"]',
                 'div[role="dialog"]', '.modal', '.overlay'
             ];
             blockSelectors.forEach(selector => {
@@ -26,7 +28,7 @@ async def extract_page_content(page: Page) -> str:
             });
 
             // Remove non-text noise
-            const scripts = document.querySelectorAll('script, style, noscript, iframe, svg, header, footer');
+            const scripts = document.querySelectorAll('script, style, noscript, iframe, svg, header, footer, nav');
             scripts.forEach(s => s.remove());
             
             return document.body.innerText;
@@ -50,13 +52,18 @@ async def scrape_url(url: str, context: BrowserContext, row_id: int) -> CrawlRes
     for attempt in range(RETRIES):
         try:
             logger.debug(f"Row {row_id}: Scraping {url} (Attempt {attempt + 1})")
+            start_time = time.time()
             response = await page.goto(url, wait_until='networkidle', timeout=PLAYWRIGHT_TIMEOUT)
+            response_time_ms = int((time.time() - start_time) * 1000)
             
             # Dismiss common cookie banners if possible (basic heuristic)
             try:
                 await page.evaluate('''() => {
-                    const buttons = Array.from(document.querySelectorAll('button, a'));
-                    const acceptBtn = buttons.find(b => b.innerText.toLowerCase().includes('accept') || b.innerText.toLowerCase().includes('agree'));
+                    const buttons = Array.from(document.querySelectorAll('button, a, div[role="button"]'));
+                    const acceptBtn = buttons.find(b => {
+                        const t = b.innerText.toLowerCase();
+                        return (t.includes('accept') || t.includes('agree') || t.includes('allow all') || t.includes('got it') || t.includes('consent')) && b.offsetHeight > 0;
+                    });
                     if(acceptBtn) acceptBtn.click();
                 }''')
                 await asyncio.sleep(1) # wait for modal to close
@@ -66,12 +73,53 @@ async def scrape_url(url: str, context: BrowserContext, row_id: int) -> CrawlRes
             status = response.status if response else 0
             final_url = page.url
             
+            # Calculate redirect chain
+            redirect_chain = []
+            if response:
+                req = response.request.redirected_from
+                while req:
+                    redirect_chain.append(req.url)
+                    req = req.redirected_from
+                redirect_chain.reverse() # original to final
+            
             text_content = await extract_page_content(page)
+            
+            # Extract internal links for deeper context crawling
+            try:
+                internal_links = await page.evaluate('''() => {
+                    return Array.from(new Set(
+                        Array.from(document.querySelectorAll('a[href]'))
+                        .map(a => a.href)
+                        .filter(h => h.startsWith(window.location.origin) && !h.includes('#'))
+                    ));
+                }''')
+            except:
+                internal_links = []
+                
+            # Filter for relevant subpages (syllabus, details, about)
+            keywords = ['syllabus', 'detail', 'about', 'course', 'program', 'module']
+            relevant_links = [link for link in internal_links if any(kw in link.lower() for kw in keywords)]
+            
+            # Visit up to 2 connected pages to enrich text
+            pages_visited = 0
+            for link in relevant_links:
+                if link == final_url: continue
+                if pages_visited >= 2: break
+                try:
+                    logger.debug(f"Row {row_id}: Fetching connected page {link}")
+                    await page.goto(link, wait_until='domcontentloaded', timeout=10000)
+                    sub_text = await extract_page_content(page)
+                    if sub_text:
+                        text_content += f"\n\n--- Content from {link} ---\n\n{sub_text}"
+                    pages_visited += 1
+                except Exception as e:
+                    logger.debug(f"Failed to scrape connected page {link}: {e}")
             
             await page.close()
             return CrawlResult(
                 final_url=final_url,
                 status_code=status,
+                response_time_ms=response_time_ms,
                 extracted_text=text_content
             )
 

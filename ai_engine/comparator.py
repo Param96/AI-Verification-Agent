@@ -13,10 +13,11 @@ async def verify_course_data(course: CourseRecord, web_data: CrawlResult) -> AIV
     Uses OpenAI to compare the dataset course record against the extracted text from the official link.
     Returns structured JSON according to AIVerificationResult schema.
     """
+    # Use local Ollama instance
     client = AsyncOpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=OPENAI_API_KEY,
-        timeout=60.0,
+        base_url="http://localhost:11434/v1",
+        api_key="ollama", # required by SDK but ignored by Ollama
+        timeout=120.0,
         max_retries=3
     )
 
@@ -41,13 +42,19 @@ async def verify_course_data(course: CourseRecord, web_data: CrawlResult) -> AIV
         "You are an expert auditor for educational courses. Your job is to compare a structured dataset "
         "record with the raw text extracted from the course's official webpage. "
         "Detect exact matches, semantic matches, missing values, outdated info, and incorrect values. "
-        "Pay SPECIAL ATTENTION to the 'field_domain' or 'category'. The main domain might be explicitly mentioned in the original PDF record, and you must verify if the webpage content actually belongs to this domain or if the webpage mentions a different domain/category entirely. "
+        "Pay SPECIAL ATTENTION to the 'institute_name', 'mode' (online/offline), 'country', 'skills' and 'field_domain'. "
+        "You must explicitly verify if the webpage content confirms the institute name, course mode, country, and skills mentioned in the PDF. "
         "Strictly adhere to the following JSON schema for your output:\n"
         "{\n"
         '  "status": "match | partial | mismatch",\n'
         '  "confidence": 0.0 to 1.0,\n'
         '  "verified_fields": {"field_name": true/false},\n'
-        '  "differences": ["list of strings detailing discrepancies"]\n'
+        '  "differences": ["list of strings detailing discrepancies"],\n'
+        '  "suggested_corrections": [{"field_name": "Course Type", "original": "Free", "suggested": "Paid"}],\n'
+        '  "verified_institute_name": "Match | Mismatch | Missing",\n'
+        '  "verified_mode": "Match | Mismatch | Missing",\n'
+        '  "verified_country": "Match | Mismatch | Missing",\n'
+        '  "verified_skills": "Match | Mismatch | Missing"\n'
         "}\n"
         "Do NOT use objects in the differences list. Provide a simple string describing each difference. Format your differences like this: 'Field Domain: The course does not belong to the domain XYZ' or 'Duration: The duration is 6 weeks instead of 4 weeks'."
     )
@@ -68,7 +75,7 @@ Make sure you LOOK CAREFULLY at the course name and institute name. Also, carefu
 
     try:
         completion = await client.chat.completions.create(
-            model=DEFAULT_LLM_MODEL,
+            model="llama3.2",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}

@@ -49,10 +49,16 @@ async def process_record(
                 predicted_domain="Unknown",
                 domain_match_status="Fail",
                 original_course_type=record.course_type or "Unknown",
+                original_mode=record.mode or "Unknown",
+                original_country=record.country or "Unknown",
+                original_skills=record.description or "Unknown",
                 similarity_scores={},
                 broken_link_status=True,
                 ai_summary="Could not verify because the webpage could not be loaded.",
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
+                response_time_ms=response_time,
+                redirect_status="N/A",
+                screenshot_path=None
             )
             checkpoint.save_processed(record.row_number, final_record.model_dump())
             checkpoint.save_incorrect(record.row_number, final_record.model_dump())
@@ -97,6 +103,23 @@ async def process_record(
         predicted_domain = tax_suggestion.get('suggestion', "Unknown")
         domain_match = "Match" if features.get('domain_match') == 1 else "Mismatch"
 
+        
+        # Extract specifics from LLM result if available
+        llm_verified_institute = "Pending"
+        llm_verified_mode = "Pending"
+        llm_verified_country = "Pending"
+        llm_verified_skills = "Pending"
+        suggested_corrections = []
+        mismatched_fields = []
+        
+        if 'llm_result' in locals():
+            llm_verified_institute = llm_result.verified_institute_name
+            llm_verified_mode = llm_result.verified_mode
+            llm_verified_country = llm_result.verified_country
+            llm_verified_skills = llm_result.verified_skills
+            suggested_corrections = llm_result.suggested_corrections
+            mismatched_fields = [k for k, v in llm_result.verified_fields.items() if not v]
+
         final_record = FinalReportRecord(
             row_number=record.row_number,
             institute_name=record.institute_name,
@@ -109,13 +132,26 @@ async def process_record(
             predicted_domain=predicted_domain,
             domain_match_status=domain_match,
             original_course_type=record.course_type or "Unknown",
+            original_mode=record.mode or "Unknown",
+            original_country=record.country or "Unknown",
+            original_skills=record.description or "Unknown",
             similarity_scores={
                 "course_name": features.get('course_name_similarity', 0.0),
                 "institute": features.get('institute_similarity', 0.0)
             },
             broken_link_status=False,
             ai_summary=tax_suggestion.get('reason', 'Verification complete.'),
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
+            response_time_ms=crawl_result.response_time_ms or 0,
+            screenshot_path=crawl_result.screenshot_path,
+            verified_institute_name=llm_verified_institute,
+            verified_mode=llm_verified_mode,
+            verified_country=llm_verified_country,
+            verified_skills=llm_verified_skills,
+            suggested_corrections=suggested_corrections,
+            mismatched_fields=mismatched_fields,
+            original_dataset_values=record.model_dump(),
+            extracted_web_values={"text": crawl_result.extracted_text[:1000] if crawl_result.extracted_text else ""}
         )
 
         checkpoint.save_processed(record.row_number, final_record.model_dump())
@@ -157,8 +193,18 @@ async def main(file_path: Path):
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
                 context = await browser.new_context(
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/117.0.0.0 Safari/537.36",
-                    ignore_https_errors=True
+                    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    ignore_https_errors=True,
+                    java_script_enabled=True,
+                    extra_http_headers={
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Sec-Fetch-Dest': 'document',
+                        'Sec-Fetch-Mode': 'navigate',
+                        'Sec-Fetch-Site': 'none',
+                        'Sec-Fetch-User': '?1',
+                        'Upgrade-Insecure-Requests': '1'
+                    }
                 )
                 
                 tasks = []

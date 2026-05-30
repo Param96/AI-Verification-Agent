@@ -47,6 +47,9 @@ class FinalReportRecord(BaseModel):
     predicted_domain: str
     domain_match_status: str
     original_course_type: str
+    original_mode: str = "Unknown"
+    original_country: str = "Unknown"
+    original_skills: str = "Unknown"
     
     # Extra ML fields
     similarity_scores: Dict[str, float]
@@ -54,9 +57,32 @@ class FinalReportRecord(BaseModel):
     ai_summary: str
     timestamp: str
 
+    # Execution & Debugging Fields
+    redirect_status: str = "N/A"
+    redirect_chain: List[str] = Field(default_factory=list)
+    response_time_ms: int = 0
+    screenshot_path: Optional[str] = None
+    
+    # Audit Output Fields
+    mismatched_fields: List[str] = Field(default_factory=list)
+    original_dataset_values: Dict[str, Any] = Field(default_factory=dict)
+    extracted_web_values: Dict[str, Any] = Field(default_factory=dict)
+    suggested_corrections: List[Dict[str, Any]] = Field(default_factory=list)
+
+    # Specific Verification Statuses
+    verified_institute_name: str = "Pending"
+    verified_mode: str = "Pending"
+    verified_country: str = "Pending"
+    verified_skills: str = "Pending"
+
 class AIVerificationResult(BaseModel):
     """Schema for the LLM output verification result."""
     status: str
     confidence: float
     verified_fields: Dict[str, bool]
     differences: List[str]
+    suggested_corrections: List[Dict[str, str]] = Field(default_factory=list)
+    verified_institute_name: str = "Pending"
+    verified_mode: str = "Pending"
+    verified_country: str = "Pending"
+    verified_skills: str = "Pending"

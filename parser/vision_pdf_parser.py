@@ -143,8 +143,18 @@ def parse_pdf_vision(file_path: Path) -> List[CourseRecord]:
                 language_match = re.search(r'Language:\s*(\S+)', full_text, re.IGNORECASE)
                 skills_match = re.search(r'Skills:\s*(.*?)(?:Link to course|$)', full_text, re.IGNORECASE)
                 domain_match = re.search(r'Domain:\s*(.*?)(?:Cost:|Mode:|Country:|Duration:|Language:|Skills:|$)', full_text, re.IGNORECASE)
-                
                 header_text = full_text.split("Cost:")[0].strip() if "Cost:" in full_text else full_text[:100]
+                
+                # Smart split of header text into Course Name and Institute Name
+                header_spans = []
+                for s in data["spans"]:
+                    if "Cost:" in s["text"]:
+                        break
+                    if s["text"].strip():
+                        header_spans.append(s["text"].strip())
+                        
+                institute_name = header_spans[0] if header_spans else header_text
+                course_name = " ".join(header_spans[1:]) if len(header_spans) > 1 else institute_name
                 
                 extracted_domain = page_domain
                 if domain_match:
@@ -160,8 +170,8 @@ def parse_pdf_vision(file_path: Path) -> List[CourseRecord]:
                 
                 record = CourseRecord(
                     row_number=row_id,
-                    institute_name="See Course Name", # Combined in header
-                    course_name=header_text,  # Cleanly contains Course + Institute 
+                    institute_name=institute_name,
+                    course_name=course_name,
                     mode=mode_match.group(1) if mode_match else "Online",
                     duration=duration_match.group(1) if duration_match else "Unknown",
                     fees=cost_match.group(1) if cost_match else "Unknown",
