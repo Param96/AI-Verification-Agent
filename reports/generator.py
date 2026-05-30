@@ -39,11 +39,40 @@ def generate_reports(records: List[FinalReportRecord], base_filename: str = "aud
             df.to_excel(writer, index=False, sheet_name='Audit_Report')
             worksheet = writer.sheets['Audit_Report']
             from openpyxl.utils import get_column_letter
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            
+            # Beautiful Styles
+            header_font = Font(bold=True, color="FFFFFF", size=12)
+            header_fill = PatternFill("solid", fgColor="4F81BD") # Professional Blue
+            wrap_alignment = Alignment(wrap_text=True, vertical="top")
+            thin_border = Border(bottom=Side(style='thin', color='E0E0E0'))
+            
+            # Format Headers
+            for cell in worksheet[1]:
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+                
+            # Freeze Top Row
+            worksheet.freeze_panes = "A2"
+            
+            # Format Columns & Rows
             for idx, col in enumerate(df.columns):
-                # Attempt to find max width, default to length of column name
-                max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
                 col_letter = get_column_letter(idx + 1)
-                worksheet.column_dimensions[col_letter].width = min(max_len, 60)
+                
+                # Set Breathable Column Widths
+                if col in ['description', 'course_name', 'ai_summary', 'institute_name']:
+                    worksheet.column_dimensions[col_letter].width = 50
+                elif col == 'link':
+                    worksheet.column_dimensions[col_letter].width = 40
+                else:
+                    worksheet.column_dimensions[col_letter].width = 20
+                
+                # Apply wrapping and borders to all cells
+                for cell in worksheet[col_letter]:
+                    if cell.row != 1:
+                        cell.alignment = wrap_alignment
+                        cell.border = thin_border
         logger.info(f"Saved Excel report: {excel_path}")
 
         # Save JSON

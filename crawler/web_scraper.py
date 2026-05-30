@@ -11,8 +11,24 @@ async def extract_page_content(page: Page) -> str:
     # We remove script and style tags to reduce noise
     try:
         content = await page.evaluate('''() => {
-            const scripts = document.querySelectorAll('script, style, noscript, iframe, svg');
+            // Aggressively remove Cookie/GDPR banners and modals
+            const blockSelectors = [
+                '[id*="cookie"]', '[class*="cookie"]',
+                '[id*="gdpr"]', '[class*="gdpr"]',
+                '[id*="consent"]', '[class*="consent"]',
+                '[id*="banner"]', '[class*="banner"]',
+                'div[role="dialog"]', '.modal', '.overlay'
+            ];
+            blockSelectors.forEach(selector => {
+                try {
+                    document.querySelectorAll(selector).forEach(e => e.remove());
+                } catch(e) {}
+            });
+
+            // Remove non-text noise
+            const scripts = document.querySelectorAll('script, style, noscript, iframe, svg, header, footer');
             scripts.forEach(s => s.remove());
+            
             return document.body.innerText;
         }''')
         return content.strip() if content else ""
