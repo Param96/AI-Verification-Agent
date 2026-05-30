@@ -113,28 +113,37 @@ def parse_pdf_vision(file_path: Path) -> List[CourseRecord]:
                 if not data["text"].strip():
                     continue # Empty quadrant
                     
-                # Extract simple features from text block
-                cost = "Free" if "Cost: Free" in data["text"] else "Unknown"
-                country = "India" if "Country: India" in data["text"] else "Unknown"
+                # 5. Regex Feature Extraction
+                full_text = data["text"].strip()
+                import re
+                
+                cost_match = re.search(r'Cost:\s*(\S+)', full_text, re.IGNORECASE)
+                mode_match = re.search(r'Mode:\s*(\S+)', full_text, re.IGNORECASE)
+                country_match = re.search(r'Country:\s*(\S+)', full_text, re.IGNORECASE)
+                duration_match = re.search(r'Duration:\s*(\S+)', full_text, re.IGNORECASE)
+                language_match = re.search(r'Language:\s*(\S+)', full_text, re.IGNORECASE)
+                skills_match = re.search(r'Skills:\s*(.*?)(?:Link to course|$)', full_text, re.IGNORECASE)
+                
+                header_text = full_text.split("Cost:")[0].strip() if "Cost:" in full_text else full_text[:100]
                 
                 record = CourseRecord(
                     row_number=row_id,
-                    institute_name=f"Extracted Institute (Page {page_num+1}, Q{q_id})",
-                    course_name=data["text"][:50].strip() + "...",
-                    mode="Online" if "Online" in data["text"] else "Offline",
-                    duration="Unknown",
-                    fees=cost,
+                    institute_name="Extracted from Header",
+                    course_name=header_text,  # Contains Course + Institute for maximum similarity matching
+                    mode=mode_match.group(1) if mode_match else "Online",
+                    duration=duration_match.group(1) if duration_match else "Unknown",
+                    fees=cost_match.group(1) if cost_match else "Unknown",
                     course_type="Free Audit" if data["free_audit"] else "Standard",
-                    field_domain="Cybersecurity",
+                    field_domain="General",
                     certificate="Unknown",
                     link=data["link"],
                     qs_world_rank="Ranked" if data["qs_ranked"] else None,
                     qs_continental_rank=None,
                     nirf_rank="Ranked" if data["nirf_ranked"] else None,
-                    description=data["text"][:200],
-                    language="English" if "English" in data["text"] else "Unknown",
+                    description=skills_match.group(1).strip() if skills_match else full_text[:200],
+                    language=language_match.group(1) if language_match else "English",
                     scholarship="Yes" if data["scholarship"] else "No",
-                    country=country,
+                    country=country_match.group(1) if country_match else "Unknown",
                     has_uni_logo=data["has_uni_logo"]
                 )
                 records.append(record)

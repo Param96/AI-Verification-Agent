@@ -44,7 +44,7 @@ class FeatureEngineer:
         features['duration_difference'] = abs(dataset_dur - web_dur) if web_dur > 0 else -1
 
         # 3. Taxonomy & Domain Features
-        domain, subdomain, tax_conf = self.taxonomy.classify_text(web_text)
+        domain, subdomain, tax_conf = self.taxonomy.classify_text(web_text, dataset.field_domain)
         features['predicted_domain_conf'] = tax_conf
         features['domain_match'] = 1 if normalize_text(dataset.field_domain) in normalize_text(domain) else 0
         features['course_type_similarity'] = self.embedding.compute_similarity(dataset.course_type, web_text)

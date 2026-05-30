@@ -33,9 +33,17 @@ def generate_reports(records: List[FinalReportRecord], base_filename: str = "aud
         df.to_csv(csv_path, index=False)
         logger.info(f"Saved CSV report: {csv_path}")
 
-        # Save Excel
+        # Save Excel with column width auto-adjustment
         # openpyxl must be installed
-        df.to_excel(excel_path, index=False)
+        with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Audit_Report')
+            worksheet = writer.sheets['Audit_Report']
+            from openpyxl.utils import get_column_letter
+            for idx, col in enumerate(df.columns):
+                # Attempt to find max width, default to length of column name
+                max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
+                col_letter = get_column_letter(idx + 1)
+                worksheet.column_dimensions[col_letter].width = min(max_len, 60)
         logger.info(f"Saved Excel report: {excel_path}")
 
         # Save JSON

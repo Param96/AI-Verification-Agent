@@ -8,10 +8,10 @@ class TaxonomyMapper:
         self.engine = EmbeddingEngine()
         self.subdomains = get_all_subdomains()
         
-    def classify_text(self, text: str) -> Tuple[str, str, float]:
+    def classify_text(self, text: str, dataset_domain: str = None) -> Tuple[str, str, float]:
         """
         Classifies extracted web text into a primary domain and subdomain.
-        Returns (Domain, Subdomain, ConfidenceScore).
+        If dataset_domain is provided and is not Cybersecurity, dynamically scores against it.
         """
         if not text:
             return "Unknown", "Unknown", 0.0
@@ -19,8 +19,14 @@ class TaxonomyMapper:
         best_score = -1.0
         best_sub = "Unknown"
         best_domain = "Unknown"
+        
+        # 1. Dynamic Domain matching
+        if dataset_domain and dataset_domain.lower() != "cybersecurity":
+            score = self.engine.compute_similarity(dataset_domain, text[:2000])
+            if score > 0.4:  # Threshold for custom domain
+                return dataset_domain, "Custom", score
 
-        # Compare the extracted text against all known subdomains to find the semantic match
+        # 2. Fallback to known taxonomy
         for domain, sub_list in CYBERSECURITY_TAXONOMY.items():
             for sub in sub_list:
                 score = self.engine.compute_similarity(sub, text[:2000]) # Truncate text for performance
