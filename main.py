@@ -54,6 +54,7 @@ async def process_record(
                 timestamp=datetime.now().isoformat()
             )
             checkpoint.save_processed(record.row_number, final_record.model_dump())
+            checkpoint.save_incorrect(record.row_number, final_record.model_dump())
             return final_record
 
         # 2. Scrape Webpage
@@ -91,6 +92,11 @@ async def process_record(
         )
 
         checkpoint.save_processed(record.row_number, final_record.model_dump())
+        
+        # Save to anomalies table if not strictly VALID
+        if final_record.verification_status != "VALID":
+            checkpoint.save_incorrect(record.row_number, final_record.model_dump())
+            
         return final_record
 
 async def main(file_path: Path):

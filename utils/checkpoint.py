@@ -16,6 +16,12 @@ class CheckpointManager:
                     data JSON
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS incorrect_records (
+                    row_number INTEGER PRIMARY KEY,
+                    data JSON
+                )
+            """)
             conn.commit()
 
     def is_processed(self, row_number: int) -> bool:
@@ -30,6 +36,15 @@ class CheckpointManager:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT OR REPLACE INTO processed_rows (row_number, data) VALUES (?, ?)",
+                (row_number, json.dumps(data))
+            )
+            conn.commit()
+
+    def save_incorrect(self, row_number: int, data: Dict[str, Any]):
+        """Saves flagged/incorrect records to a dedicated table."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO incorrect_records (row_number, data) VALUES (?, ?)",
                 (row_number, json.dumps(data))
             )
             conn.commit()
