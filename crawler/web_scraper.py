@@ -27,6 +27,17 @@ async def extract_page_content(page: Page) -> str:
                 } catch(e) {}
             });
 
+            // Inject image alt texts so LLM can read them
+            document.querySelectorAll('img').forEach(img => {
+                if (img.alt) {
+                    const altText = document.createTextNode(` [Image: ${img.alt}] `);
+                    img.parentNode.insertBefore(altText, img);
+                } else if (img.src && img.src.toLowerCase().includes('logo')) {
+                    const srcText = document.createTextNode(` [Logo Image Present] `);
+                    img.parentNode.insertBefore(srcText, img);
+                }
+            });
+
             // Remove non-text noise
             const scripts = document.querySelectorAll('script, style, noscript, iframe, svg, header, footer, nav');
             scripts.forEach(s => s.remove());

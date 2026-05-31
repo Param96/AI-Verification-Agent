@@ -1,3 +1,7 @@
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+import torch
+import xgboost
 import asyncio
 import aiohttp
 import argparse
@@ -52,6 +56,8 @@ async def process_record(
                 original_mode=record.mode or "Unknown",
                 original_country=record.country or "Unknown",
                 original_skills=record.description or "Unknown",
+                original_fees=record.fees or "Unknown",
+                original_logo=record.has_uni_logo or False,
                 similarity_scores={},
                 broken_link_status=True,
                 ai_summary="Could not verify because the webpage could not be loaded.",
@@ -74,7 +80,7 @@ async def process_record(
         # 4. Fallback to LLM for maximum accuracy if ML Classifier is uncertain or fails
         if verification_result['status'] != "VALID" or verification_result['confidence'] < 0.8:
             from ai_engine.comparator import verify_course_data
-            logger.info(f"Row {record.row_number}: ML status {verification_result['status']} ({verification_result['confidence']:.2f}). Falling back to Gemma 4...")
+            logger.info(f"Row {record.row_number}: ML status {verification_result['status']} ({verification_result['confidence']:.2f}). Falling back to llama3.2...")
             llm_result = await verify_course_data(record, crawl_result)
             
             # Map LLM statuses to system statuses
@@ -109,6 +115,8 @@ async def process_record(
         llm_verified_mode = "Pending"
         llm_verified_country = "Pending"
         llm_verified_skills = "Pending"
+        llm_verified_fees = "Pending"
+        llm_verified_logo = "Pending"
         suggested_corrections = []
         mismatched_fields = []
         
@@ -117,6 +125,8 @@ async def process_record(
             llm_verified_mode = llm_result.verified_mode
             llm_verified_country = llm_result.verified_country
             llm_verified_skills = llm_result.verified_skills
+            llm_verified_fees = llm_result.verified_fees
+            llm_verified_logo = llm_result.verified_logo
             suggested_corrections = llm_result.suggested_corrections
             mismatched_fields = [k for k, v in llm_result.verified_fields.items() if not v]
 
@@ -135,6 +145,8 @@ async def process_record(
             original_mode=record.mode or "Unknown",
             original_country=record.country or "Unknown",
             original_skills=record.description or "Unknown",
+            original_fees=record.fees or "Unknown",
+            original_logo=record.has_uni_logo or False,
             similarity_scores={
                 "course_name": features.get('course_name_similarity', 0.0),
                 "institute": features.get('institute_similarity', 0.0)
@@ -148,6 +160,8 @@ async def process_record(
             verified_mode=llm_verified_mode,
             verified_country=llm_verified_country,
             verified_skills=llm_verified_skills,
+            verified_fees=llm_verified_fees,
+            verified_logo=llm_verified_logo,
             suggested_corrections=suggested_corrections,
             mismatched_fields=mismatched_fields,
             original_dataset_values=record.model_dump(),
@@ -165,7 +179,10 @@ async def process_record(
 async def main(file_path: Path):
     logger.info(f"Starting ML-Driven Data Auditing System for {file_path}")
 
-    # Parse data
+    # Initialize IntegrityChecker BEFORE any cv2 parsing to avoid OpenCV/PyTorch/XGBoost OpenMP segfaults on macOS
+    print("DEBUG: Instantiating IntegrityChecker early...", flush=True)
+    checker = IntegrityChecker()
+
     if file_path.suffix.lower() == '.pdf':
         records = parse_pdf_vision(file_path)
     else:
@@ -184,8 +201,9 @@ async def main(file_path: Path):
     logger.info(f"Total Records: {len(records)} | Unprocessed: {len(unprocessed)}")
 
     if unprocessed:
-        checker = IntegrityChecker()
+        print("DEBUG: Preloading dataset...", flush=True)
         checker.preload_dataset(records)
+        print("DEBUG: Starting concurrency setup...", flush=True)
         
         semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
         
@@ -211,7 +229,10 @@ async def main(file_path: Path):
                 for record in unprocessed:
                     tasks.append(process_record(record, session, context, semaphore, checkpoint, checker))
                 
-                await tqdm.gather(*tasks, desc="Verifying Courses")
+                try:
+                    await tqdm.gather(*tasks, desc="Verifying Courses")
+                except Exception as e:
+                    logger.error(f"Error during parallel execution: {e}", exc_info=True)
                 
                 await context.close()
                 await browser.close()

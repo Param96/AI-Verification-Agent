@@ -42,8 +42,8 @@ async def verify_course_data(course: CourseRecord, web_data: CrawlResult) -> AIV
         "You are an expert auditor for educational courses. Your job is to compare a structured dataset "
         "record with the raw text extracted from the course's official webpage. "
         "Detect exact matches, semantic matches, missing values, outdated info, and incorrect values. "
-        "Pay SPECIAL ATTENTION to the 'institute_name', 'mode' (online/offline), 'country', 'skills' and 'field_domain'. "
-        "You must explicitly verify if the webpage content confirms the institute name, course mode, country, and skills mentioned in the PDF. "
+        "Pay SPECIAL ATTENTION to the 'institute_name', 'mode' (online/offline), 'country', 'skills', 'fees' and 'has_uni_logo'. "
+        "You must explicitly verify if the webpage content confirms the institute name, course mode, country, skills, fees, and if the university logo or brand is present on the page (check for alt texts or headers). "
         "Strictly adhere to the following JSON schema for your output:\n"
         "{\n"
         '  "status": "match | partial | mismatch",\n'
@@ -54,9 +54,12 @@ async def verify_course_data(course: CourseRecord, web_data: CrawlResult) -> AIV
         '  "verified_institute_name": "Match | Mismatch | Missing",\n'
         '  "verified_mode": "Match | Mismatch | Missing",\n'
         '  "verified_country": "Match | Mismatch | Missing",\n'
-        '  "verified_skills": "Match | Mismatch | Missing"\n'
+        '  "verified_skills": "Match | Mismatch | Missing",\n'
+        '  "verified_fees": "Match | Mismatch | Missing",\n'
+        '  "verified_logo": "Match | Mismatch | Missing"\n'
         "}\n"
-        "Do NOT use objects in the differences list. Provide a simple string describing each difference. Format your differences like this: 'Field Domain: The course does not belong to the domain XYZ' or 'Duration: The duration is 6 weeks instead of 4 weeks'."
+        "Do NOT use objects in the differences list. Provide a simple string describing each difference. Format your differences like this: 'Field Domain: The course does not belong to the domain XYZ' or 'Duration: The duration is 6 weeks instead of 4 weeks'.\n"
+        "CRITICAL INSTRUCTION: For 'verified_institute_name', 'verified_mode', 'verified_country', 'verified_skills', 'verified_fees', and 'verified_logo', you MUST output a STRING value of 'Match', 'Mismatch', or 'Missing'. NEVER output boolean true/false for these fields."
     )
 
     user_prompt = f"""

@@ -154,7 +154,8 @@ def parse_pdf_vision(file_path: Path) -> List[CourseRecord]:
                         header_spans.append(s["text"].strip())
                         
                 institute_name = header_spans[0] if header_spans else header_text
-                course_name = " ".join(header_spans[1:]) if len(header_spans) > 1 else institute_name
+                # Merge the entire header text into course_name so nothing is cut off
+                course_name = header_text.strip()
                 
                 extracted_domain = page_domain
                 if domain_match:

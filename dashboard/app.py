@@ -130,6 +130,8 @@ for idx, row in filtered_df.iterrows():
             st.markdown(f"- **Course Mode**: {row.get('verified_mode', 'N/A')}")
             st.markdown(f"- **Country**: {row.get('verified_country', 'N/A')}")
             st.markdown(f"- **Skills / Description**: {row.get('verified_skills', 'N/A')}")
+            st.markdown(f"- **Course Fees**: {row.get('verified_fees', 'N/A')}")
+            st.markdown(f"- **University Logo**: {row.get('verified_logo', 'N/A')}")
             
             if row.get('suggested_corrections'):
                 st.markdown("### Suggested Corrections")

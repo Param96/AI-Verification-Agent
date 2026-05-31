@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from pydantic import BaseModel, Field
 
 class CourseRecord(BaseModel):
@@ -50,6 +50,8 @@ class FinalReportRecord(BaseModel):
     original_mode: str = "Unknown"
     original_country: str = "Unknown"
     original_skills: str = "Unknown"
+    original_fees: str = "Unknown"
+    original_logo: bool = False
     
     # Extra ML fields
     similarity_scores: Dict[str, float]
@@ -70,10 +72,12 @@ class FinalReportRecord(BaseModel):
     suggested_corrections: List[Dict[str, Any]] = Field(default_factory=list)
 
     # Specific Verification Statuses
-    verified_institute_name: str = "Pending"
-    verified_mode: str = "Pending"
-    verified_country: str = "Pending"
-    verified_skills: str = "Pending"
+    verified_institute_name: Union[str, bool] = "Pending"
+    verified_mode: Union[str, bool] = "Pending"
+    verified_country: Union[str, bool] = "Pending"
+    verified_skills: Union[str, bool] = "Pending"
+    verified_fees: Union[str, bool] = "Pending"
+    verified_logo: Union[str, bool] = "Pending"
 
 class AIVerificationResult(BaseModel):
     """Schema for the LLM output verification result."""
@@ -82,7 +86,9 @@ class AIVerificationResult(BaseModel):
     verified_fields: Dict[str, bool]
     differences: List[str]
     suggested_corrections: List[Dict[str, str]] = Field(default_factory=list)
-    verified_institute_name: str = "Pending"
-    verified_mode: str = "Pending"
-    verified_country: str = "Pending"
-    verified_skills: str = "Pending"
+    verified_institute_name: Union[str, bool] = "Pending"
+    verified_mode: Union[str, bool] = "Pending"
+    verified_country: Union[str, bool] = "Pending"
+    verified_skills: Union[str, bool] = "Pending"
+    verified_fees: Union[str, bool] = "Pending"
+    verified_logo: Union[str, bool] = "Pending"
