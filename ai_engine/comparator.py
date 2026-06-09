@@ -2,7 +2,7 @@ import asyncio
 from typing import Optional
 from openai import AsyncOpenAI
 from pydantic import ValidationError
-from config import OPENAI_API_KEY, DEFAULT_LLM_MODEL
+from config import DEFAULT_LLM_MODEL
 from utils.logger import logger
 from utils.schema import CourseRecord, CrawlResult, AIVerificationResult
 
@@ -13,7 +13,7 @@ async def verify_course_data(course: CourseRecord, web_data: CrawlResult) -> AIV
     Uses OpenAI to compare the dataset course record against the extracted text from the official link.
     Returns structured JSON according to AIVerificationResult schema.
     """
-    # Use local Ollama instance
+    # Use Local Ollama API via OpenAI compatibility layer
     client = AsyncOpenAI(
         base_url="http://localhost:11434/v1",
         api_key="ollama", # required by SDK but ignored by Ollama
@@ -78,7 +78,7 @@ Make sure you LOOK CAREFULLY at the course name and institute name. Also, carefu
 
     try:
         completion = await client.chat.completions.create(
-            model="llama3.2",
+            model=DEFAULT_LLM_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}

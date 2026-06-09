@@ -31,4 +31,4 @@ VERIFICATION_MODEL_PATH = MODELS_DIR / "verification_model.pkl"
 
 # LLM / AI Engine Settings
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "your_openrouter_or_openai_api_key_here")
-DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", "google/gemma-4-31b-it")
+DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", "gemma4:31b-cloud")

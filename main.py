@@ -80,7 +80,8 @@ async def process_record(
         # 4. Fallback to LLM for maximum accuracy if ML Classifier is uncertain or fails
         if verification_result['status'] != "VALID" or verification_result['confidence'] < 0.8:
             from ai_engine.comparator import verify_course_data
-            logger.info(f"Row {record.row_number}: ML status {verification_result['status']} ({verification_result['confidence']:.2f}). Falling back to llama3.2...")
+            from config import DEFAULT_LLM_MODEL
+            logger.info(f"Row {record.row_number}: ML status {verification_result['status']} ({verification_result['confidence']:.2f}). Falling back to {DEFAULT_LLM_MODEL}...")
             llm_result = await verify_course_data(record, crawl_result)
             
             # Map LLM statuses to system statuses
