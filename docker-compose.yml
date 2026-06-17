@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------
+  # 1. Primary Database (PostgreSQL)
+  # ----------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: verify_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: verify_admin
+      POSTGRES_PASSWORD: secure_password_123
+      POSTGRES_DB: verify_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verify_admin -d verify_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------
+  # 2. Message Broker & Cache (Redis)
+  # ----------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: verify_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------
+  # 3. Object Storage (MinIO - S3 Compatible)
+  # ----------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: verify_minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: minio_admin
+      MINIO_ROOT_PASSWORD: minio_secure_password
+    ports:
+      - "9000:9000" # API Port
+      - "9001:9001" # Console Port
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ----------------------------------------------------
+  # 4. Vector Database (Qdrant)
+  # ----------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: verify_qdrant
+    restart: always
+    ports:
+      - "6333:6333" # REST API
+      - "6334:6334" # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  pg_data:
+  redis_data:
+  minio_data:
+  qdrant_data:
