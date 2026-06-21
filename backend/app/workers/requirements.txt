@@ -1,0 +1,7 @@
+pymupdf>=1.23.22
+playwright>=1.42.0
+sentence-transformers>=2.5.1
+xgboost>=2.0.3
+scikit-learn>=1.4.1.post1
+openai>=1.14.2
+pydantic>=2.6.4
