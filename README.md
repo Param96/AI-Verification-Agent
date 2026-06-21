@@ -71,3 +71,17 @@ The AI Verification worker will automatically connect to `http://localhost:11434
 - **`/infrastructure`**: Advanced deployment orchestration configuration files.
 - **`/shared`**: Shared Python utilities mapping domain rules and taxonomy.
 - **`docker-compose.yml`**: The universal control plane for booting all microservices simultaneously.
+
+---
+
+## 📄 License & Terms of Use
+
+**Copyright (c) 2026 Param Patel. All Rights Reserved.**
+
+This repository and its source code are provided under a **Custom Proprietary License**.
+
+- **Personal Use:** You may download and run this software for personal, non-commercial, and educational evaluation purposes.
+- **Commercial Use:** Commercial use, business operations, or generating revenue from this software is strictly prohibited without a commercial license. Please contact the author to negotiate a commercial agreement.
+- **Modification & Redistribution:** Distributing modified versions, sharing the code, or creating derivative public works is strictly forbidden without written consent.
+
+For the full legal terms, please see the [LICENSE](LICENSE) file in the root directory.
