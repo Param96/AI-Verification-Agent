@@ -2,6 +2,7 @@ from sentence_transformers import SentenceTransformer, util
 from config import EMBEDDING_MODEL_NAME
 from utils.logger import logger
 
+
 class EmbeddingEngine:
     _instance = None
 
@@ -25,9 +26,9 @@ class EmbeddingEngine:
         """Returns cosine similarity between two texts [0, 1]."""
         if not text1 or not text2:
             return 0.0
-        
+
         emb1 = self.get_embedding(text1)
         emb2 = self.get_embedding(text2)
-        
+
         cosine_score = util.cos_sim(emb1, emb2).item()
-        return max(0.0, cosine_score) # Return bound to 0-1
+        return max(0.0, cosine_score)  # Return bound to 0-1

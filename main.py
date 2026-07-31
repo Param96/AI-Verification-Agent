@@ -1,4 +1,5 @@
 import os
+
 os.environ["OMP_NUM_THREADS"] = "1"
 import torch
 import xgboost
@@ -21,23 +22,26 @@ from crawler.web_scraper import scrape_url
 from verifier.integrity_checker import IntegrityChecker
 from reports.generator import generate_reports
 
+
 async def process_record(
-    record: CourseRecord, 
-    session: aiohttp.ClientSession, 
-    context, 
+    record: CourseRecord,
+    session: aiohttp.ClientSession,
+    context,
     semaphore: asyncio.Semaphore,
     checkpoint: CheckpointManager,
-    checker: IntegrityChecker
+    checker: IntegrityChecker,
 ) -> FinalReportRecord:
-    
+
     async with semaphore:
         # Check if already processed
         if checkpoint.is_processed(record.row_number):
             logger.debug(f"Row {record.row_number} already processed. Skipping.")
-            return None 
+            return None
 
         # 1. Validate Link
-        is_valid, status_code, final_url, response_time = await validate_link(record.link, session)
+        is_valid, status_code, final_url, response_time = await validate_link(
+            record.link, session
+        )
         link_status_msg = f"HTTP {status_code}" if status_code else "Failed/Timeout"
 
         if not is_valid:
@@ -64,7 +68,7 @@ async def process_record(
                 timestamp=datetime.now().isoformat(),
                 response_time_ms=response_time,
                 redirect_status="N/A",
-                screenshot_path=None
+                screenshot_path=None,
             )
             checkpoint.save_processed(record.row_number, final_record.model_dump())
             checkpoint.save_incorrect(record.row_number, final_record.model_dump())
@@ -73,44 +77,53 @@ async def process_record(
         # 2. Scrape Webpage
         crawl_result = await scrape_url(final_url, context, record.row_number)
         crawl_result.response_time_ms = response_time
-        
+
         # 3. Integrity Verification (ML + Rules)
         verification_result = checker.check_integrity(record, crawl_result)
 
         # 4. Fallback to LLM for maximum accuracy if ML Classifier is uncertain or fails
-        if verification_result['status'] != "VALID" or verification_result['confidence'] < 0.8:
+        if (
+            verification_result["status"] != "VALID"
+            or verification_result["confidence"] < 0.8
+        ):
             from ai_engine.comparator import verify_course_data
             from config import DEFAULT_LLM_MODEL
-            logger.info(f"Row {record.row_number}: ML status {verification_result['status']} ({verification_result['confidence']:.2f}). Falling back to {DEFAULT_LLM_MODEL}...")
+
+            logger.info(
+                f"Row {record.row_number}: ML status {verification_result['status']} ({verification_result['confidence']:.2f}). Falling back to {DEFAULT_LLM_MODEL}..."
+            )
             llm_result = await verify_course_data(record, crawl_result)
-            
+
             # Map LLM statuses to system statuses
             status_map = {
                 "MATCH": "VALID",
                 "PARTIAL": "PARTIAL_MATCH",
-                "MISMATCH": "INVALID"
+                "MISMATCH": "INVALID",
             }
             llm_stat = llm_result.status.upper()
-            verification_result['status'] = status_map.get(llm_stat, llm_stat)
-            verification_result['confidence'] = llm_result.confidence
-            
+            verification_result["status"] = status_map.get(llm_stat, llm_stat)
+            verification_result["confidence"] = llm_result.confidence
+
             # Format differences into AI summary
-            if not verification_result.get('suggested_correction'):
-                verification_result['suggested_correction'] = {}
-                
+            if not verification_result.get("suggested_correction"):
+                verification_result["suggested_correction"] = {}
+
             if llm_result.differences:
-                verification_result['suggested_correction']['reason'] = "• " + "\n• ".join(llm_result.differences)
+                verification_result["suggested_correction"]["reason"] = (
+                    "• " + "\n• ".join(llm_result.differences)
+                )
             else:
-                verification_result['suggested_correction']['reason'] = "LLM Verification: Perfect match."
+                verification_result["suggested_correction"][
+                    "reason"
+                ] = "LLM Verification: Perfect match."
 
         # 5. Compile Final Record
-        features = verification_result.get('features') or {}
-        tax_suggestion = verification_result.get('suggested_correction') or {}
-        
-        predicted_domain = tax_suggestion.get('suggestion', "Unknown")
-        domain_match = "Match" if features.get('domain_match') == 1 else "Mismatch"
+        features = verification_result.get("features") or {}
+        tax_suggestion = verification_result.get("suggested_correction") or {}
 
-        
+        predicted_domain = tax_suggestion.get("suggestion", "Unknown")
+        domain_match = "Match" if features.get("domain_match") == 1 else "Mismatch"
+
         # Extract specifics from LLM result if available
         llm_verified_institute = "Pending"
         llm_verified_mode = "Pending"
@@ -120,8 +133,8 @@ async def process_record(
         llm_verified_logo = "Pending"
         suggested_corrections = []
         mismatched_fields = []
-        
-        if 'llm_result' in locals():
+
+        if "llm_result" in locals():
             llm_verified_institute = llm_result.verified_institute_name
             llm_verified_mode = llm_result.verified_mode
             llm_verified_country = llm_result.verified_country
@@ -129,7 +142,9 @@ async def process_record(
             llm_verified_fees = llm_result.verified_fees
             llm_verified_logo = llm_result.verified_logo
             suggested_corrections = llm_result.suggested_corrections
-            mismatched_fields = [k for k, v in llm_result.verified_fields.items() if not v]
+            mismatched_fields = [
+                k for k, v in llm_result.verified_fields.items() if not v
+            ]
 
         final_record = FinalReportRecord(
             row_number=record.row_number,
@@ -137,8 +152,8 @@ async def process_record(
             course_name=record.course_name,
             course_link=record.link or "N/A",
             link_status=f"HTTP {crawl_result.status_code}",
-            verification_status=verification_result['status'],
-            confidence_score=verification_result['confidence'],
+            verification_status=verification_result["status"],
+            confidence_score=verification_result["confidence"],
             original_domain=record.field_domain or "Unknown",
             predicted_domain=predicted_domain,
             domain_match_status=domain_match,
@@ -149,11 +164,11 @@ async def process_record(
             original_fees=record.fees or "Unknown",
             original_logo=record.has_uni_logo or False,
             similarity_scores={
-                "course_name": features.get('course_name_similarity', 0.0),
-                "institute": features.get('institute_similarity', 0.0)
+                "course_name": features.get("course_name_similarity", 0.0),
+                "institute": features.get("institute_similarity", 0.0),
             },
             broken_link_status=False,
-            ai_summary=tax_suggestion.get('reason', 'Verification complete.'),
+            ai_summary=tax_suggestion.get("reason", "Verification complete."),
             timestamp=datetime.now().isoformat(),
             response_time_ms=crawl_result.response_time_ms or 0,
             screenshot_path=crawl_result.screenshot_path,
@@ -166,16 +181,23 @@ async def process_record(
             suggested_corrections=suggested_corrections,
             mismatched_fields=mismatched_fields,
             original_dataset_values=record.model_dump(),
-            extracted_web_values={"text": crawl_result.extracted_text[:1000] if crawl_result.extracted_text else ""}
+            extracted_web_values={
+                "text": (
+                    crawl_result.extracted_text[:1000]
+                    if crawl_result.extracted_text
+                    else ""
+                )
+            },
         )
 
         checkpoint.save_processed(record.row_number, final_record.model_dump())
-        
+
         # Save to anomalies table if not strictly VALID
         if final_record.verification_status != "VALID":
             checkpoint.save_incorrect(record.row_number, final_record.model_dump())
-            
+
         return final_record
+
 
 async def main(file_path: Path):
     logger.info(f"Starting ML-Driven Data Auditing System for {file_path}")
@@ -184,7 +206,7 @@ async def main(file_path: Path):
     print("DEBUG: Instantiating IntegrityChecker early...", flush=True)
     checker = IntegrityChecker()
 
-    if file_path.suffix.lower() == '.pdf':
+    if file_path.suffix.lower() == ".pdf":
         records = parse_pdf_vision(file_path)
     else:
         records = parse_spreadsheet(file_path)
@@ -205,9 +227,9 @@ async def main(file_path: Path):
         print("DEBUG: Preloading dataset...", flush=True)
         checker.preload_dataset(records)
         print("DEBUG: Starting concurrency setup...", flush=True)
-        
+
         semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
-        
+
         async with aiohttp.ClientSession() as session:
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
@@ -216,42 +238,49 @@ async def main(file_path: Path):
                     ignore_https_errors=True,
                     java_script_enabled=True,
                     extra_http_headers={
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                        'Accept-Language': 'en-US,en;q=0.9',
-                        'Sec-Fetch-Dest': 'document',
-                        'Sec-Fetch-Mode': 'navigate',
-                        'Sec-Fetch-Site': 'none',
-                        'Sec-Fetch-User': '?1',
-                        'Upgrade-Insecure-Requests': '1'
-                    }
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                        "Accept-Language": "en-US,en;q=0.9",
+                        "Sec-Fetch-Dest": "document",
+                        "Sec-Fetch-Mode": "navigate",
+                        "Sec-Fetch-Site": "none",
+                        "Sec-Fetch-User": "?1",
+                        "Upgrade-Insecure-Requests": "1",
+                    },
                 )
-                
+
                 tasks = []
                 for record in unprocessed:
-                    tasks.append(process_record(record, session, context, semaphore, checkpoint, checker))
-                
+                    tasks.append(
+                        process_record(
+                            record, session, context, semaphore, checkpoint, checker
+                        )
+                    )
+
                 try:
                     await tqdm.gather(*tasks, desc="Verifying Courses")
                 except Exception as e:
                     logger.error(f"Error during parallel execution: {e}", exc_info=True)
-                
+
                 await context.close()
                 await browser.close()
 
     # Load ALL processed records from checkpoint DB to generate final report
     all_data_dicts = checkpoint.get_all_processed()
     final_records = [FinalReportRecord(**data) for data in all_data_dicts]
-    
+
     # Sort back to original order
     final_records.sort(key=lambda x: x.row_number)
-    
+
     logger.info(f"Generating final reports for {len(final_records)} records...")
     generate_reports(final_records, base_filename=f"audit_{file_path.stem}")
     logger.info("Agent execution completed successfully!")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ML-Driven Data Auditing System")
-    parser.add_argument("file_path", type=str, help="Path to the Excel, CSV, or PDF dataset.")
+    parser.add_argument(
+        "file_path", type=str, help="Path to the Excel, CSV, or PDF dataset."
+    )
     args = parser.parse_args()
 
     input_path = Path(args.file_path).resolve()

@@ -4,7 +4,7 @@ from app.core.config import settings
 celery_app = Celery(
     "verify_worker",
     broker=settings.CELERY_BROKER_URL,
-    backend=settings.CELERY_RESULT_BACKEND
+    backend=settings.CELERY_RESULT_BACKEND,
 )
 
 celery_app.conf.update(
@@ -18,5 +18,5 @@ celery_app.conf.update(
         "app.workers.ingestion.*": {"queue": "ingestion_queue"},
         "app.workers.scraper.*": {"queue": "scraper_queue"},
         "app.workers.ai_engine.*": {"queue": "ai_queue"},
-    }
+    },
 )

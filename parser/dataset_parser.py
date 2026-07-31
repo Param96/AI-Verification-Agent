@@ -22,16 +22,17 @@ COLUMN_MAP = {
     "Description": "description",
     "Language": "language",
     "Scholarship/Financial Aid": "scholarship",
-    "Country": "country"
+    "Country": "country",
 }
+
 
 def parse_spreadsheet(file_path: Path) -> List[CourseRecord]:
     """Parse Excel or CSV file into a list of CourseRecords."""
     logger.info(f"Parsing spreadsheet: {file_path}")
-    
-    if file_path.suffix.lower() == '.csv':
+
+    if file_path.suffix.lower() == ".csv":
         df = pd.read_csv(file_path)
-    elif file_path.suffix.lower() in ['.xlsx', '.xls']:
+    elif file_path.suffix.lower() in [".xlsx", ".xls"]:
         df = pd.read_excel(file_path)
     else:
         raise ValueError(f"Unsupported file format: {file_path.suffix}")
@@ -52,15 +53,15 @@ def parse_spreadsheet(file_path: Path) -> List[CourseRecord]:
                     mapped_data[schema_col] = None
 
             # Enforce required fields
-            if mapped_data.get('row_number') is None:
-                mapped_data['row_number'] = idx + 1
+            if mapped_data.get("row_number") is None:
+                mapped_data["row_number"] = idx + 1
             else:
-                mapped_data['row_number'] = int(float(mapped_data['row_number']))
+                mapped_data["row_number"] = int(float(mapped_data["row_number"]))
 
-            if mapped_data.get('institute_name') is None:
-                mapped_data['institute_name'] = "Unknown"
-            if mapped_data.get('course_name') is None:
-                mapped_data['course_name'] = "Unknown"
+            if mapped_data.get("institute_name") is None:
+                mapped_data["institute_name"] = "Unknown"
+            if mapped_data.get("course_name") is None:
+                mapped_data["course_name"] = "Unknown"
 
             record = CourseRecord(**mapped_data)
             records.append(record)

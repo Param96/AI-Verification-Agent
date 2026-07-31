@@ -8,7 +8,10 @@ from utils.schema import CourseRecord, CrawlResult, AIVerificationResult
 
 # We instantiate the client lazily inside the function to avoid event loop conflicts.
 
-async def verify_course_data(course: CourseRecord, web_data: CrawlResult) -> AIVerificationResult:
+
+async def verify_course_data(
+    course: CourseRecord, web_data: CrawlResult
+) -> AIVerificationResult:
     """
     Uses OpenAI to compare the dataset course record against the extracted text from the official link.
     Returns structured JSON according to AIVerificationResult schema.
@@ -16,23 +19,33 @@ async def verify_course_data(course: CourseRecord, web_data: CrawlResult) -> AIV
     # Use Local Ollama API via OpenAI compatibility layer
     client = AsyncOpenAI(
         base_url="http://localhost:11434/v1",
-        api_key="ollama", # required by SDK but ignored by Ollama
+        api_key="ollama",  # required by SDK but ignored by Ollama
         timeout=120.0,
-        max_retries=3
+        max_retries=3,
     )
 
     if not web_data.extracted_text or len(web_data.extracted_text.strip()) < 50:
-        logger.warning(f"Row {course.row_number}: Not enough text extracted to perform AI verification.")
+        logger.warning(
+            f"Row {course.row_number}: Not enough text extracted to perform AI verification."
+        )
         return AIVerificationResult(
             status="mismatch",
             confidence=1.0,
-            verified_fields={k: False for k in course.model_dump().keys() if k not in ["row_number", "link"]},
-            differences=["Failed to extract sufficient text from the webpage or page is blank."]
+            verified_fields={
+                k: False
+                for k in course.model_dump().keys()
+                if k not in ["row_number", "link"]
+            },
+            differences=[
+                "Failed to extract sufficient text from the webpage or page is blank."
+            ],
         )
 
     # Build the prompt
     dataset_info = course.model_dump(exclude={"row_number", "link"})
-    dataset_str = "\n".join([f"- {k}: {v}" for k, v in dataset_info.items() if v is not None])
+    dataset_str = "\n".join(
+        [f"- {k}: {v}" for k, v in dataset_info.items() if v is not None]
+    )
 
     # Truncate text to avoid token limits (keep first ~20,000 chars depending on model)
     # Using roughly 15,000 chars for safety.
@@ -81,13 +94,14 @@ Make sure you LOOK CAREFULLY at the course name and institute name. Also, carefu
             model=DEFAULT_LLM_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             response_format={"type": "json_object"},
-            temperature=0.1
+            temperature=0.1,
         )
 
         import json
+
         raw_content = completion.choices[0].message.content.strip()
         if raw_content.startswith("```json"):
             raw_content = raw_content[7:]
@@ -95,7 +109,7 @@ Make sure you LOOK CAREFULLY at the course name and institute name. Also, carefu
             raw_content = raw_content[3:]
         if raw_content.endswith("```"):
             raw_content = raw_content[:-3]
-        
+
         result_dict = json.loads(raw_content.strip())
         result = AIVerificationResult(**result_dict)
         return result
@@ -106,7 +120,7 @@ Make sure you LOOK CAREFULLY at the course name and institute name. Also, carefu
             status="mismatch",
             confidence=0.0,
             verified_fields={},
-            differences=[f"AI output validation error: {str(e)}"]
+            differences=[f"AI output validation error: {str(e)}"],
         )
     except Exception as e:
         logger.error(f"Row {course.row_number}: AI verification failed: {e}")
@@ -114,5 +128,5 @@ Make sure you LOOK CAREFULLY at the course name and institute name. Also, carefu
             status="mismatch",
             confidence=0.0,
             verified_fields={},
-            differences=[f"AI connection error: {str(e)}"]
+            differences=[f"AI connection error: {str(e)}"],
         )

@@ -6,10 +6,11 @@ from utils.logger import logger
 from utils.schema import CourseRecord
 from parser.dataset_parser import parse_spreadsheet
 
+
 def parse_pdf(file_path: Path) -> List[CourseRecord]:
     """Parse tables from PDF and convert them into CourseRecords."""
     logger.info(f"Parsing PDF: {file_path}")
-    
+
     all_rows = []
     headers = None
 
@@ -33,9 +34,9 @@ def parse_pdf(file_path: Path) -> List[CourseRecord]:
                         if len(row) < len(headers):
                             row.extend([""] * (len(headers) - len(row)))
                         elif len(row) > len(headers):
-                            row = row[:len(headers)]
+                            row = row[: len(headers)]
                         cleaned_rows.append(row)
-                        
+
                     all_rows.extend(cleaned_rows)
 
         if not headers or not all_rows:
@@ -44,17 +45,17 @@ def parse_pdf(file_path: Path) -> List[CourseRecord]:
 
         # Convert to DataFrame to re-use spreadsheet parser logic
         df = pd.DataFrame(all_rows, columns=headers)
-        
+
         # Save to temporary CSV and parse using dataset_parser
-        temp_csv = file_path.with_suffix('.temp.csv')
+        temp_csv = file_path.with_suffix(".temp.csv")
         df.to_csv(temp_csv, index=False)
-        
+
         records = parse_spreadsheet(temp_csv)
-        
+
         # Cleanup
         if temp_csv.exists():
             temp_csv.unlink()
-            
+
         return records
 
     except Exception as e:

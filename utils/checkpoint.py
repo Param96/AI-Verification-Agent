@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, List
 
+
 class CheckpointManager:
     def __init__(self, db_path: Path):
         self.db_path = db_path
@@ -27,8 +28,7 @@ class CheckpointManager:
     def is_processed(self, row_number: int) -> bool:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
-                "SELECT 1 FROM processed_rows WHERE row_number = ?", 
-                (row_number,)
+                "SELECT 1 FROM processed_rows WHERE row_number = ?", (row_number,)
             )
             return cursor.fetchone() is not None
 
@@ -36,7 +36,7 @@ class CheckpointManager:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT OR REPLACE INTO processed_rows (row_number, data) VALUES (?, ?)",
-                (row_number, json.dumps(data))
+                (row_number, json.dumps(data)),
             )
             conn.commit()
 
@@ -45,7 +45,7 @@ class CheckpointManager:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT OR REPLACE INTO incorrect_records (row_number, data) VALUES (?, ?)",
-                (row_number, json.dumps(data))
+                (row_number, json.dumps(data)),
             )
             conn.commit()
 

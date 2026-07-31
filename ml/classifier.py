@@ -4,6 +4,7 @@ from typing import Dict, Any, Tuple
 from config import VERIFICATION_MODEL_PATH
 from utils.logger import logger
 
+
 class VerificationClassifier:
     def __init__(self):
         self.model = None
@@ -13,7 +14,7 @@ class VerificationClassifier:
             2: "OUTDATED",
             3: "INVALID",
             4: "BROKEN_LINK",
-            5: "MISSING_DATA"
+            5: "MISSING_DATA",
         }
         self._load_model()
 
@@ -25,7 +26,9 @@ class VerificationClassifier:
             except Exception as e:
                 logger.error(f"Failed to load ML model: {e}")
         else:
-            logger.warning(f"ML Model not found at {VERIFICATION_MODEL_PATH}. Will fallback to rule-based engine.")
+            logger.warning(
+                f"ML Model not found at {VERIFICATION_MODEL_PATH}. Will fallback to rule-based engine."
+            )
 
     def predict(self, features: Dict[str, Any]) -> Tuple[str, float]:
         """
@@ -37,13 +40,13 @@ class VerificationClassifier:
 
         # Convert to DataFrame to match expected input for sklearn/xgboost
         df = pd.DataFrame([features])
-        
+
         try:
             # Reorder columns just in case
             prediction = self.model.predict(df)[0]
             probabilities = self.model.predict_proba(df)[0]
             confidence = float(max(probabilities))
-            
+
             label = self.label_mapping.get(prediction, "INVALID")
             return label, confidence
         except Exception as e:
@@ -52,10 +55,10 @@ class VerificationClassifier:
 
     def _rule_based_fallback(self, features: Dict[str, Any]) -> Tuple[str, float]:
         """Simple fallback if model isn't trained yet."""
-        if features.get('broken_link') == 1:
+        if features.get("broken_link") == 1:
             return "BROKEN_LINK", 1.0
-            
-        sim = features.get('course_name_similarity', 0.0)
+
+        sim = features.get("course_name_similarity", 0.0)
         if sim > 0.8:
             return "VALID", float(sim)
         elif sim > 0.4:

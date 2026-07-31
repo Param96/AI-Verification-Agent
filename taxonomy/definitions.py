@@ -5,7 +5,7 @@ CYBERSECURITY_TAXONOMY = {
         "Cyberspace Security",
         "Introductory Cybersecurity",
         "Cybersecurity",
-        "Cyber Security"
+        "Cyber Security",
     ],
     "Network & Infrastructure Security": [
         "Network Security",
@@ -14,7 +14,7 @@ CYBERSECURITY_TAXONOMY = {
         "IoT Security",
         "Defensive Security",
         "Network Defense and Protection",
-        "Cloud Infrastructure Defense"
+        "Cloud Infrastructure Defense",
     ],
     "System & Endpoint Security": [
         "System Security",
@@ -22,7 +22,7 @@ CYBERSECURITY_TAXONOMY = {
         "Endpoint Security",
         "Mobile Security",
         "Biometric Security",
-        "Endpoint Protection"
+        "Endpoint Protection",
     ],
     "Application & Data Security": [
         "Application Security",
@@ -30,7 +30,7 @@ CYBERSECURITY_TAXONOMY = {
         "Mobile Application Security",
         "Software Security",
         "Data Security",
-        "Database Security"
+        "Database Security",
     ],
     "Cyber Forensics & Investigation": [
         "Cyber Forensics",
@@ -38,7 +38,7 @@ CYBERSECURITY_TAXONOMY = {
         "Mobile Forensics",
         "Computer Forensics",
         "Data Forensics",
-        "Network Forensics"
+        "Network Forensics",
     ],
     "Legal, Ethical & Strategic Security": [
         "Cyber Law",
@@ -47,9 +47,10 @@ CYBERSECURITY_TAXONOMY = {
         "Penetration Testing",
         "Penetration Testing and Red Teaming",
         "Red Teaming",
-        "Exploit Development"
-    ]
+        "Exploit Development",
+    ],
 }
+
 
 def get_all_subdomains():
     """Flattens the taxonomy into a single list of all subdomains."""

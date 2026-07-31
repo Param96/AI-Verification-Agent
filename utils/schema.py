@@ -1,8 +1,10 @@
 from typing import Optional, List, Dict, Any, Union
 from pydantic import BaseModel, Field
 
+
 class CourseRecord(BaseModel):
     """Schema representing a row from the input dataset."""
+
     row_number: int
     institute_name: str
     course_name: str
@@ -22,8 +24,10 @@ class CourseRecord(BaseModel):
     country: Optional[str] = None
     has_uni_logo: Optional[bool] = None
 
+
 class CrawlResult(BaseModel):
     """Schema for the result of the web crawler."""
+
     final_url: Optional[str] = None
     status_code: Optional[int] = None
     response_time_ms: Optional[int] = None
@@ -32,8 +36,10 @@ class CrawlResult(BaseModel):
     snapshot_path: Optional[str] = None
     screenshot_path: Optional[str] = None
 
+
 class FinalReportRecord(BaseModel):
     """Schema for the final generated ML audit report row."""
+
     row_number: int
     institute_name: str
     course_name: str
@@ -41,7 +47,7 @@ class FinalReportRecord(BaseModel):
     link_status: str
     verification_status: str
     confidence_score: float
-    
+
     # Taxonomy fields
     original_domain: str
     predicted_domain: str
@@ -52,7 +58,7 @@ class FinalReportRecord(BaseModel):
     original_skills: str = "Unknown"
     original_fees: str = "Unknown"
     original_logo: bool = False
-    
+
     # Extra ML fields
     similarity_scores: Dict[str, float]
     broken_link_status: bool
@@ -64,7 +70,7 @@ class FinalReportRecord(BaseModel):
     redirect_chain: List[str] = Field(default_factory=list)
     response_time_ms: int = 0
     screenshot_path: Optional[str] = None
-    
+
     # Audit Output Fields
     mismatched_fields: List[str] = Field(default_factory=list)
     original_dataset_values: Dict[str, Any] = Field(default_factory=dict)
@@ -79,8 +85,10 @@ class FinalReportRecord(BaseModel):
     verified_fees: Union[str, bool] = "Pending"
     verified_logo: Union[str, bool] = "Pending"
 
+
 class AIVerificationResult(BaseModel):
     """Schema for the LLM output verification result."""
+
     status: str
     confidence: float
     verified_fields: Dict[str, bool]
