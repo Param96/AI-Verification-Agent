@@ -1,7 +1,7 @@
 import aiohttp
 import asyncio
 import time
-from typing import Tuple, Optional
+from typing import Tuple
 from config import TIMEOUT_SECONDS, USER_AGENT
 from utils.logger import logger
 

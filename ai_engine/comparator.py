@@ -1,5 +1,3 @@
-import asyncio
-from typing import Optional
 from openai import AsyncOpenAI
 from pydantic import ValidationError
 from config import DEFAULT_LLM_MODEL

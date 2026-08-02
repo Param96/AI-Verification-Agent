@@ -1,8 +1,6 @@
 import fitz  # PyMuPDF
-import cv2
-import numpy as np
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List
 from utils.logger import logger
 from utils.schema import CourseRecord
 

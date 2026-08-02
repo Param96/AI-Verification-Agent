@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import List, Dict, Any
+from typing import List
 from pathlib import Path
 from utils.logger import logger
 from utils.schema import CourseRecord

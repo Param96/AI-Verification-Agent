@@ -1,7 +1,6 @@
 from typing import Tuple, Dict
 from ml.embedding_engine import EmbeddingEngine
 from taxonomy.definitions import CYBERSECURITY_TAXONOMY, get_all_subdomains
-from utils.logger import logger
 
 
 class TaxonomyMapper:

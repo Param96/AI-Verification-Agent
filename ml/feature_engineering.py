@@ -1,4 +1,3 @@
-import pandas as pd
 from typing import Dict, Any
 from ml.embedding_engine import EmbeddingEngine
 from extractor.normalizer import (

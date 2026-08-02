@@ -1,7 +1,5 @@
 import asyncio
-from typing import Optional
-from pathlib import Path
-from playwright.async_api import async_playwright, Page, BrowserContext
+from playwright.async_api import Page, BrowserContext
 from utils.logger import logger
 from utils.schema import CrawlResult
 import time

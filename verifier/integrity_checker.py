@@ -2,7 +2,6 @@ from typing import List, Dict, Any
 from utils.schema import CourseRecord, CrawlResult
 from verifier.semantic_verifier import SemanticVerifier
 from verifier.duplicate_checker import detect_duplicates
-from utils.logger import logger
 
 
 class IntegrityChecker:

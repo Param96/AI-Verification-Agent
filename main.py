@@ -1,8 +1,6 @@
 import os
 
 os.environ["OMP_NUM_THREADS"] = "1"
-import torch
-import xgboost
 import asyncio
 import aiohttp
 import argparse

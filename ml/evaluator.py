@@ -6,7 +6,6 @@ from sklearn.metrics import (
     confusion_matrix,
 )
 import json
-from pathlib import Path
 from utils.logger import logger
 from config import MODELS_DIR
 
